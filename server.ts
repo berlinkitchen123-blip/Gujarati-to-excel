@@ -3,7 +3,6 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import 'dotenv/config';
-import Anthropic from '@anthropic-ai/sdk';
 import { GoogleGenAI } from '@google/genai';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -45,49 +44,6 @@ You MUST:
 
 Return ONLY a valid, raw JSON array of objects.`;
 
-      // 1. If Anthropic Key is present, USE IT FIRST (User requested to use Claude instead)
-      if (process.env.ANTHROPIC_API_KEY) {
-        console.log('Using Claude API for extraction...');
-        try {
-          const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-          const message = await anthropic.messages.create({
-            model: 'claude-3-5-sonnet-20241022',
-            max_tokens: 4096,
-            messages: [
-              {
-                role: 'user',
-                content: [
-                  {
-                    type: 'image',
-                    source: {
-                      type: 'base64',
-                      media_type: mimeType as any,
-                      data: base64Data,
-                    },
-                  },
-                  {
-                    type: 'text',
-                    text: promptText,
-                  },
-                ],
-              },
-            ],
-          });
-          let claudeText = '';
-          if (message.content[0].type === 'text') {
-            claudeText = message.content[0].text;
-          }
-          const jsonText = claudeText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
-          res.json({ data: jsonText, source: 'claude' });
-          return;
-        } catch (claudeError: any) {
-           console.error('Claude API failed:', claudeError);
-           res.status(500).json({ error: `Claude API extraction failed. Error: ${claudeError?.message || 'Unknown server error.'}` });
-           return;
-        }
-      }
-
-      // 2. Fallback to Gemini if Anthropic key is NOT provided
       try {
         console.log('Using Gemini API for extraction...');
         if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'undefined') {
@@ -118,7 +74,7 @@ Return ONLY a valid, raw JSON array of objects.`;
         console.warn('Gemini extraction failed:', geminiError?.message);
         
         res.status(400).json({ 
-           error: `Extraction failed: ${geminiError?.message || 'Unknown error'}. \n\nYou reached a limit or encountered an API key error with Gemini. To use Claude, please enter an ANTHROPIC_API_KEY in the Settings menu.` 
+           error: `Extraction failed: ${geminiError?.message || 'Unknown error'}.` 
         });
         return;
       }
