@@ -61,6 +61,30 @@ export default function App() {
     let allData: ExtractedData[] = [];
     
     try {
+      const promptText = `You are an absolute expert OCR and data extraction specialist for Gujarati-language administrative documents.
+                      
+The task is to extract data from a table in the provided image.
+
+Document: "Mahila Kendra Suchit Sanchalak/Sah Sanchalak" record for Taluka: KARJAN.
+Reference Context Data: ${templateData || 'No context provided.'}
+
+You MUST:
+1. Read the image row-by-row, cell-by-cell. Identify and maintain the table structure.
+2. Translate/Transliterate EVERYTHING into English. DO NOT use Gujarati script.
+3. Use this exact JSON structure and keys: 
+   ["Taluka", "Group", "Gaam", "Sr. No.", "Kendra Place", "Kendrastha Baheno ni Sankhya", "Sanchalak/Sah Sanchalak", "Surname", "Name", "Husband Name", "Contact Number", "Birth Date", "Education", "Vidhya Prem Vardhan Exam", "Bhavferi", "Vrati", "Ekadashi", "Remark"]
+4. STRICT Rules:
+   - Taluka: ALWAYS "Karjan".
+   - USE THE REFERENCE CONTEXT DATA to improve accuracy of "Group" and "Gaam" names. If a name in the image looks close to a name in the context, prioritize the context spelling.
+   - For each record, if "Group" or "Gaam" are missing in a row, they inherit the value from the previous row (as per standard table formatting).
+   - Missing data: Return empty string "" (NOT null or "null").
+   - Education Level: Only recognized educational terms in English.
+   - "Vidhya Prem Vardhan Exam": MUST be one of ["Jignashu", "Gnata", "Anu Gnata", "Vichakshan", "Praveshak", "Parangat"] or "".
+   - "Bhavferi", "Vrati", "Ekadashi": Return "1" ONLY if explicitly checked, otherwise "".
+   - Accuracy: Double-check each cell value against the visual table. It is crucial to correctly associate "Group" and "Gaam" with every individual row.
+
+Return ONLY a valid, raw JSON array of objects.`;
+
       for (let i = 0; i < files.length; i++) {
         if (i > 0) {
           // Delay to respect rate limits (e.g. 15 RPM free tier -> wait 4s between requests)
@@ -78,25 +102,23 @@ export default function App() {
           let retries = 3;
           while (retries > 0) {
             try {
-              const res = await fetch('/api/extract', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  base64Data: base64String,
-                  mimeType: file.type,
-                  templateData: templateData
-                })
+              if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'undefined') {
+                throw new Error("GEMINI_API_KEY is not defined in the environment.");
+              }
+              const { GoogleGenAI } = await import('@google/genai');
+              const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+              const res = await ai.models.generateContent({
+                model: 'gemini-2.0-flash',
+                contents: {
+                  parts: [
+                    { inlineData: { mimeType: file.type, data: base64String } },
+                    { text: promptText },
+                  ],
+                },
               });
               
-              const data = await res.json();
-              if (!res.ok) {
-                // If it's a 429 rate limit or 500 error, retry or throw
-                const apiError = new Error(data.error || 'Server error');
-                (apiError as any).status = res.status;
-                throw apiError;
-              }
-              
-              return data;
+              const jsonText = res.text?.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim() || '[]';
+              return { data: jsonText };
             } catch (err: any) {
               if (err.status === 429 && retries > 1) {
                 retries--;
@@ -108,7 +130,7 @@ export default function App() {
           }
         })();
 
-        const jsonText = response.data;
+        const jsonText = response?.data;
         if (jsonText) {
           try {
             const data = JSON.parse(jsonText);
