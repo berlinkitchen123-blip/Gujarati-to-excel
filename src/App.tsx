@@ -18,6 +18,7 @@ export default function App() {
   const [extractedData, setExtractedData] = useState<ExtractedData[]>([]);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [apiKey, setApiKey] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,6 +62,10 @@ export default function App() {
     let allData: ExtractedData[] = [];
     
     try {
+      if (!apiKey.trim()) {
+        throw new Error("Please enter your Gemini API Key.");
+      }
+
       const promptText = `You are an absolute expert OCR and data extraction specialist for Gujarati-language administrative documents.
                       
 The task is to extract data from a table in the provided image.
@@ -102,11 +107,8 @@ Return ONLY a valid, raw JSON array of objects.`;
           let retries = 3;
           while (retries > 0) {
             try {
-              if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'undefined') {
-                throw new Error("GEMINI_API_KEY is not defined in the environment.");
-              }
               const { GoogleGenAI } = await import('@google/genai');
-              const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+              const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
               const res = await ai.models.generateContent({
                 model: 'gemini-2.0-flash',
                 contents: {
@@ -176,6 +178,18 @@ Return ONLY a valid, raw JSON array of objects.`;
 
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Google Gemini API Key</label>
+            <input 
+              type="password"
+              placeholder="Paste your API key here..."
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors"
+            />
+            <p className="text-xs text-gray-500 mt-2">Required. Your key is only used locally in your browser and is never stored.</p>
+          </div>
+
           <label className="block w-full cursor-pointer mb-4">
             <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-indigo-400 transition-colors">
               <span className="text-sm font-medium text-gray-700">
