@@ -122,14 +122,10 @@ Return ONLY a valid, raw JSON array of objects.`;
               const jsonText = res.text?.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim() || '[]';
               return { data: jsonText };
             } catch (err: any) {
-              const isRateLimit = err.status === 429 || 
-                                  err.message?.includes('429') || 
-                                  err.message?.toLowerCase().includes('quota') || 
-                                  err.message?.toLowerCase().includes('too many requests');
-                                  
-              if (isRateLimit && retries > 1) {
+              console.warn(`Extraction attempt failed (${4 - retries}/3). Retrying in 15 seconds...`, err);
+              if (retries > 1) {
                 retries--;
-                // Wait 15 seconds for quota to reset before retrying
+                // Wait 15 seconds regardless of error type to be absolutely certain quota buckets refresh
                 await new Promise(resolve => setTimeout(resolve, 15000));
                 continue;
               }
