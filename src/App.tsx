@@ -108,15 +108,16 @@ Return ONLY a valid, raw JSON array of objects.`;
           while (retries > 0) {
             try {
               const { GoogleGenAI } = await import('@google/genai');
-              const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
-              const res = await ai.models.generateContent({
+              const genAI = new GoogleGenAI({ apiKey: apiKey.trim() });
+              
+              const res = await genAI.models.generateContent({
                 model: 'gemini-1.5-flash',
-                contents: {
+                contents: [{
                   parts: [
                     { inlineData: { mimeType: file.type, data: base64String } },
                     { text: promptText },
-                  ],
-                },
+                  ]
+                }]
               });
               
               const jsonText = res.text?.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim() || '[]';
@@ -147,7 +148,8 @@ Return ONLY a valid, raw JSON array of objects.`;
       }
       setExtractedData(allData);
     } catch (err: any) {
-      setError(err.message || 'Failed to process images. Please try again.');
+      console.error('Final processing error:', err);
+      setError(err.message || JSON.stringify(err) || 'Failed to process images. Please try again.');
     } finally {
       setLoading(false);
     }
