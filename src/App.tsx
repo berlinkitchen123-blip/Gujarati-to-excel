@@ -107,20 +107,22 @@ Return ONLY a valid, raw JSON array of objects.`;
           let retries = 3;
           while (retries > 0) {
             try {
-              const { GoogleGenAI } = await import('@google/genai');
-              const genAI = new GoogleGenAI({ apiKey: apiKey.trim() });
+              const { GoogleGenerativeAI } = await import('@google/generative-ai');
+              const genAI = new GoogleGenerativeAI(apiKey.trim());
+              const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
               
-              const res = await genAI.models.generateContent({
-                model: 'gemini-1.5-flash',
-                contents: [{
-                  parts: [
-                    { inlineData: { mimeType: file.type, data: base64String } },
-                    { text: promptText },
-                  ]
-                }]
-              });
+              const res = await model.generateContent([
+                {
+                  inlineData: {
+                    mimeType: file.type,
+                    data: base64String
+                  }
+                },
+                promptText
+              ]);
               
-              const jsonText = res.text?.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim() || '[]';
+              const response = res.response;
+              const jsonText = response.text().replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim() || '[]';
               return { data: jsonText };
             } catch (err: any) {
               console.warn(`Extraction attempt failed (${4 - retries}/3). Retrying in 15 seconds...`, err);
