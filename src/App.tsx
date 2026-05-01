@@ -92,8 +92,8 @@ Return ONLY a valid, raw JSON array of objects.`;
 
       for (let i = 0; i < files.length; i++) {
         if (i > 0) {
-          // Delay to respect rate limits (e.g. 15 RPM free tier -> wait 4s between requests)
-          await new Promise(resolve => setTimeout(resolve, 4000));
+          // Delay to respect rate limits (e.g. 15 RPM free tier -> wait 5s between requests to be safe)
+          await new Promise(resolve => setTimeout(resolve, 5000));
         }
         
         const file = files[i];
@@ -122,9 +122,15 @@ Return ONLY a valid, raw JSON array of objects.`;
               const jsonText = res.text?.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim() || '[]';
               return { data: jsonText };
             } catch (err: any) {
-              if (err.status === 429 && retries > 1) {
+              const isRateLimit = err.status === 429 || 
+                                  err.message?.includes('429') || 
+                                  err.message?.toLowerCase().includes('quota') || 
+                                  err.message?.toLowerCase().includes('too many requests');
+                                  
+              if (isRateLimit && retries > 1) {
                 retries--;
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                // Wait 15 seconds for quota to reset before retrying
+                await new Promise(resolve => setTimeout(resolve, 15000));
                 continue;
               }
               throw err;
