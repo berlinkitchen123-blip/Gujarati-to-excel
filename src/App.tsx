@@ -110,7 +110,7 @@ Return ONLY a valid, raw JSON array of objects.`;
               const { GoogleGenAI } = await import('@google/genai');
               const ai = new GoogleGenAI({ apiKey: apiKey.trim() });
               const res = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-1.5-flash',
                 contents: {
                   parts: [
                     { inlineData: { mimeType: file.type, data: base64String } },
