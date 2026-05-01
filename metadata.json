@@ -1,0 +1,6 @@
+{
+  "name": "Gujarati Document OCR to Excel",
+  "description": "Upload images containing Gujarati text and get a structured Excel sheet in English.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
